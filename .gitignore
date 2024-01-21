@@ -1,1 +1,4 @@
 .idea/
+venv/
+logs/
+.wcf.lock

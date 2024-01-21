@@ -1,0 +1,1 @@
+from robot.robot import Robot, __version__
