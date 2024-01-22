@@ -1,6 +1,7 @@
 from wcferry import Wcf
 import signal
-from robot import Robot, __version__
+from robot import __version__
+from robot import *
 
 def main():
     wcf = Wcf(debug=True)
