@@ -23,6 +23,7 @@ from .home_interface import HomeInterface
 from .setting_interface import SettingInterface
 # from .text_interface import TextInterface
 # from .view_interface import ViewInterface
+from .contact_interface import ContactInterface
 from ..common.config import ZH_SUPPORT_URL, EN_SUPPORT_URL, cfg
 from ..common.icon import Icon
 from ..common.signal_bus import signalBus
@@ -39,6 +40,7 @@ class MainWindow(FluentWindow):
 
         # create sub interface
         self.homeInterface = HomeInterface(self)
+        self.contactInterface = ContactInterface(self)
         # self.iconInterface = IconInterface(self)
         # self.basicInputInterface = BasicInputInterface(self)
         # self.dateTimeInterface = DateTimeInterface(self)
@@ -74,7 +76,7 @@ class MainWindow(FluentWindow):
         # self.addSubInterface(self.iconInterface, Icon.EMOJI_TAB_SYMBOLS, t.icons)
         # self.navigationInterface.addSeparator()
         #
-        # pos = NavigationItemPosition.SCROLL
+        pos = NavigationItemPosition.SCROLL
         # self.addSubInterface(self.basicInputInterface, FIF.CHECKBOX,t.basicInput, pos)
         # self.addSubInterface(self.dateTimeInterface, FIF.DATE_TIME, t.dateTime, pos)
         # self.addSubInterface(self.dialogInterface, FIF.MESSAGE, t.dialogs, pos)
@@ -86,6 +88,7 @@ class MainWindow(FluentWindow):
         # self.addSubInterface(self.statusInfoInterface, FIF.CHAT, t.statusInfo, pos)
         # self.addSubInterface(self.textInterface, Icon.TEXT, t.text, pos)
         # self.addSubInterface(self.viewInterface, Icon.GRID, t.view, pos)
+        self.addSubInterface(self.contactInterface, FIF.PEOPLE, self.tr('联系人'), pos)
 
         # add custom widget to bottom
         self.navigationInterface.addWidget(
