@@ -18,6 +18,8 @@ def main():
     # 机器人启动发送测试消息
     robot.sendTextMsg("机器人启动成功！", "filehelper")
 
+    print(robot.getAllFriends())
+
     # 接收消息
     # robot.enableRecvMsg()     # 可能会丢消息？
     robot.enableReceivingMsg()  # 加队列

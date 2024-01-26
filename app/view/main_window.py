@@ -10,6 +10,7 @@ from qfluentwidgets import FluentIcon as FIF
 
 from .gallery_interface import GalleryInterface
 from .home_interface import HomeInterface
+from .character_interface import CharacterInterface
 # from .basic_input_interface import BasicInputInterface
 # from .date_time_interface import DateTimeInterface
 # from .dialog_interface import DialogInterface
@@ -41,6 +42,7 @@ class MainWindow(FluentWindow):
         # create sub interface
         self.homeInterface = HomeInterface(self)
         self.contactInterface = ContactInterface(self)
+        self.controlInterface = CharacterInterface(self)
         # self.iconInterface = IconInterface(self)
         # self.basicInputInterface = BasicInputInterface(self)
         # self.dateTimeInterface = DateTimeInterface(self)
@@ -74,7 +76,7 @@ class MainWindow(FluentWindow):
         t = Translator()
         self.addSubInterface(self.homeInterface, FIF.HOME, self.tr('Home'))
         # self.addSubInterface(self.iconInterface, Icon.EMOJI_TAB_SYMBOLS, t.icons)
-        # self.navigationInterface.addSeparator()
+        self.navigationInterface.addSeparator()
         #
         pos = NavigationItemPosition.SCROLL
         # self.addSubInterface(self.basicInputInterface, FIF.CHECKBOX,t.basicInput, pos)
@@ -88,6 +90,7 @@ class MainWindow(FluentWindow):
         # self.addSubInterface(self.statusInfoInterface, FIF.CHAT, t.statusInfo, pos)
         # self.addSubInterface(self.textInterface, Icon.TEXT, t.text, pos)
         # self.addSubInterface(self.viewInterface, Icon.GRID, t.view, pos)
+        self.addSubInterface(self.controlInterface, FIF.ROBOT, self.tr('控制面板'), pos)
         self.addSubInterface(self.contactInterface, FIF.PEOPLE, self.tr('联系人'), pos)
 
         # add custom widget to bottom
@@ -114,7 +117,7 @@ class MainWindow(FluentWindow):
         self.resize(960, 780)
         self.setMinimumWidth(760)
         self.setWindowIcon(QIcon(':/gallery/images/logo.png'))
-        self.setWindowTitle('Wechat-AI-Assistant')
+        self.setWindowTitle('微信个人助手')
 
         self.setMicaEffectEnabled(cfg.get(cfg.micaEnabled))
 

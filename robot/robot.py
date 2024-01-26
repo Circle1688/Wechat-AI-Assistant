@@ -138,3 +138,6 @@ class Robot:
             # 添加了好友，更新好友列表
             self.allContacts[msg.sender] = nickName[0]
             self.sendTextMsg("您好", msg.sender)
+
+    def getAllFriends(self):
+        return self.wcf.get_friends()
