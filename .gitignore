@@ -3,3 +3,4 @@ venv/
 logs/
 .wcf.lock
 FluentDesigner_v1.3.3/
+**/__pycache__
