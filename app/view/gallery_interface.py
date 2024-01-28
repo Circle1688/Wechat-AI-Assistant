@@ -87,6 +87,36 @@ class ExampleCard(QWidget):
 
         self.widget.show()
 
+class TitleGroup(QWidget):
+    """ Example card """
+
+    def __init__(self, title, subtitle, widget: QWidget, stretch=0, parent=None):
+        super().__init__(parent=parent)
+        self.widget = widget
+        self.stretch = stretch
+
+        self.titleLabel = StrongBodyLabel(title, self)
+        self.subtitleLabel = CaptionLabel(subtitle, self)
+        self.subtitleLabel.setTextColor(QColor(128, 128, 128))
+
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.widgetLayout = QHBoxLayout()
+
+        self.layout.addWidget(self.titleLabel)
+        if subtitle != '':
+            self.layout.addWidget(self.subtitleLabel)
+
+        self.layout.addSpacing(10)
+
+        self.layout.addLayout(self.widgetLayout, 0)
+
+        self.widgetLayout.addWidget(self.widget)
+        if self.stretch == 0:
+            self.widgetLayout.addStretch(1)
+
+        self.widget.show()
+
 
 class GalleryInterface(ScrollArea):
     """ Gallery interface """
@@ -125,6 +155,18 @@ class GalleryInterface(ScrollArea):
         card = ExampleCard(title, widget, stretch, self.view)
         self.vBoxLayout.addWidget(card, 0, Qt.AlignTop)
         return card
+
+    def addTitleGroup(self, title, subtitle, widget, stretch=0):
+        group = TitleGroup(title, subtitle, widget, stretch, self.view)
+        self.vBoxLayout.addWidget(group, 0, Qt.AlignTop)
+        return group
+
+    def addRightGroup(self, widget):
+        h_layout = QHBoxLayout()
+        h_layout.setContentsMargins(0, 0, 0, 0)
+        h_layout.addStretch()
+        h_layout.addWidget(widget)
+        self.vBoxLayout.addLayout(h_layout)
 
     def scrollToCard(self, index: int):
         """ scroll to example card """

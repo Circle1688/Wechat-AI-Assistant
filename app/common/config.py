@@ -47,15 +47,20 @@ class Config(QConfig):
     language = OptionsConfigItem(
         "MainWindow", "Language", Language.AUTO, OptionsValidator(Language), LanguageSerializer(), restart=True)
 
+    waitTime = OptionsConfigItem(
+        "Assistant", "WaitTime", "正常", OptionsValidator(["慢速", "正常", "快速", "秒回"]))
+
+    maxToken = RangeConfigItem("Assistant", "MaxToken", 20, RangeValidator(10, 100))
+
     # Material
-    blurRadius  = RangeConfigItem("Material", "AcrylicBlurRadius", 15, RangeValidator(0, 40))
+    blurRadius = RangeConfigItem("Material", "AcrylicBlurRadius", 15, RangeValidator(0, 40))
 
     # software update
     checkUpdateAtStartUp = ConfigItem("Update", "CheckUpdateAtStartUp", True, BoolValidator())
 
 
 YEAR = 2023
-AUTHOR = "zhiyiYo"
+AUTHOR = "CircleCoder"
 VERSION = __version__
 HELP_URL = "https://qfluentwidgets.com"
 REPO_URL = "https://github.com/zhiyiYo/PyQt-Fluent-Widgets"

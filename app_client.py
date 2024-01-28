@@ -8,6 +8,7 @@ from qfluentwidgets import FluentTranslator
 
 from app.common.config import cfg
 from app.view.main_window import MainWindow
+from app.view.login_widget import LoginWindow
 
 
 # enable dpi scale
@@ -29,7 +30,7 @@ app.installTranslator(translator)
 app.installTranslator(galleryTranslator)
 
 # create main window
-w = MainWindow()
+w = LoginWindow()
 w.show()
 
 app.exec()

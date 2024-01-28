@@ -1,29 +1,49 @@
 from PySide6.QtCore import Qt, QUrl, QSize
-from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout
+from PySide6.QtGui import QPixmap, QIcon
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget, QApplication
 from qfluentwidgets import (PushButton, Dialog, MessageBox, ColorDialog, TeachingTip, TeachingTipTailPosition,
                             InfoBarIcon, Flyout, FlyoutView, TeachingTipView, FlyoutAnimationType, SubtitleLabel,
-                            LineEdit, MessageBoxBase, PasswordLineEdit, BodyLabel, CheckBox, HyperlinkButton)
+                            LineEdit, MessageBoxBase, PasswordLineEdit, BodyLabel, CheckBox, PrimaryPushButton)
+from qframelesswindow import AcrylicWindow
+from qfluentwidgets import setThemeColor
+from qfluentwidgets import FluentTranslator, SplitTitleBar
+from app.view.main_window import MainWindow
+import robot
+from wcferry import Wcf
 
-class LoginMessageBox(MessageBoxBase):
+class LoginWindow(AcrylicWindow):
     """ Custom message box """
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.resize(300, 400)
 
-        self.nameLineEdit = LineEdit(self)
-        self.passwordLineEdit = PasswordLineEdit(self)
+        self.setTitleBar(SplitTitleBar(self))
 
-        label_username = BodyLabel(self.tr('用户名'))
-        label_pwd = BodyLabel(self.tr('密码'))
-        self.remember_pwd = CheckBox(self.tr('记住密码'))
-        self.register_btn = HyperlinkButton(text=self.tr('注册用户'), url='')
-        self.find_pwd_btn = HyperlinkButton(text=self.tr('找回密码'), url='')
+        self.titleBar.raise_()
+
+        self.setWindowTitle('微信个人助手 - 登录')
+        self.setWindowIcon(QIcon(':/gallery/images/logo.png'))
+        self.windowEffect.setMicaEffect(self.winId())
+
+        # self.topLayout = QHBoxLayout(self)
+        # self.topLayout.setSpacing(0)
+        # self.topLayout.setContentsMargins(0, 0, 0, 0)
+        self.rightLayout = QVBoxLayout(self)
+        self.rightLayout.setContentsMargins(100, 50, 100, 50)
+
+        side = QLabel()
+        pixmap = QPixmap("app/resource/images/side.png")
+        pixmap.scaled(side.size(), Qt.KeepAspectRatio)
+        side.setScaledContents(True)
+        side.setPixmap(pixmap)
+        side.repaint()
+
+        # self.topLayout.addWidget(side)
+        #
+        # self.topLayout.addLayout(self.rightLayout)
 
         self.logo_layout = QHBoxLayout(self)
-        self.h_layout = QHBoxLayout(self)
-        self.h_layout2 = QHBoxLayout(self)
-
         logo = QLabel(pixmap=QPixmap("app/resource/images/logo.png"),
                       scaledContents=True,
                       maximumSize=QSize(100, 100),
@@ -31,27 +51,26 @@ class LoginMessageBox(MessageBoxBase):
 
         # add widget to view layout
         self.logo_layout.addWidget(logo)
-        self.viewLayout.addLayout(self.logo_layout)
+        self.rightLayout.addLayout(self.logo_layout)
 
-        self.h_layout.addWidget(label_username)
-        self.h_layout.addWidget(self.register_btn)
-        self.viewLayout.addLayout(self.h_layout)
+        self.login_btn = PrimaryPushButton(text=self.tr('微信扫码登录'))
 
-        self.viewLayout.addWidget(self.nameLineEdit)
-        self.viewLayout.addWidget(label_pwd)
-        self.viewLayout.addWidget(self.passwordLineEdit)
-        self.h_layout2.addWidget(self.remember_pwd)
-        self.h_layout2.addWidget(self.find_pwd_btn)
-        self.viewLayout.addLayout(self.h_layout2)
+        self.rightLayout.addSpacing(50)
 
+        self.rightLayout.addWidget(self.login_btn)
 
-        # change the text of button
-        self.yesButton.setText(self.tr('登录'))
-        self.cancelButton.setText(self.tr('Cancel'))
+        self.login_btn.clicked.connect(self.start)
 
-        self.widget.setMinimumWidth(360)
-        self.yesButton.setDisabled(True)
-        self.passwordLineEdit.textChanged.connect(self._validateUrl)
+        desktop = QApplication.screens()[0].availableGeometry()
+        w, h = desktop.width(), desktop.height()
+        self.move(w // 2 - self.width() // 2, h // 2 - self.height() // 2)
 
-    def _validateUrl(self, text):
-        self.yesButton.setEnabled(QUrl(text).isValid())
+    def start(self):
+        self.login()
+
+    def login(self):
+        wcf = Wcf(debug=True)
+        if wcf.is_login():
+            print(wcf.get_self_wxid())
+            self.close()
+            w = MainWindow(wcf)

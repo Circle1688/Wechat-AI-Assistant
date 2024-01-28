@@ -3,7 +3,7 @@ from qfluentwidgets import (SettingCardGroup, SwitchSettingCard, FolderListSetti
                             HyperlinkCard, PrimaryPushSettingCard, ScrollArea,
                             ComboBoxSettingCard, ExpandLayout, Theme, CustomColorSettingCard,
                             setTheme, setThemeColor, RangeSettingCard, isDarkTheme, HeaderCardWidget, TitleLabel,
-                            TableWidget, SearchLineEdit, SwitchButton, RadioButton, StrongBodyLabel, BodyLabel,
+                            TableWidget, SearchLineEdit, LineEdit, SwitchButton, RadioButton, StrongBodyLabel, BodyLabel,
                             IconWidget, FluentIcon, PushButton, PrimaryPushButton)
 from PySide6.QtCore import Qt, Signal, QUrl, QStandardPaths, QEvent
 from PySide6.QtGui import QDesktopServices
@@ -13,7 +13,7 @@ from ..common.style_sheet import StyleSheet
 from ..common.translator import Translator
 from .gallery_interface import GalleryInterface
 
-class LineEdit(SearchLineEdit):
+class SLineEdit(SearchLineEdit):
     """ Search line edit """
 
     def __init__(self, parent=None):
@@ -34,7 +34,7 @@ class ContactInterface(GalleryInterface):
         )
         self.setObjectName('contactInterface')
 
-        self.searchLineEdit = LineEdit(self)
+        self.searchLineEdit = SLineEdit(self)
 
         self.vBoxLayout.addWidget(self.searchLineEdit)
 
@@ -78,7 +78,7 @@ class TableFrame(TableWidget):
         self.setColumnCount(3)
 
         self.setHorizontalHeaderLabels([
-            self.tr('昵称'), self.tr('备注'), self.tr('是否托管')
+            self.tr('微信昵称'), self.tr('备注'), self.tr('是否托管')
         ])
 
         contactInfos = [
@@ -118,16 +118,20 @@ class TableFrame(TableWidget):
         for i, contactInfo in enumerate(contactInfos):
             self.setItem(i, 0, QTableWidgetItem(contactInfo["name"]))
             self.setItem(i, 1, QTableWidgetItem(contactInfo["remark"]))
-            tmp_widget = QWidget()
-            tmp_layout = QHBoxLayout()
-            tmp_layout.addSpacing(20)
-            tmp_layout.addWidget(SwitchButton())
-            tmp_layout.addSpacing(20)
-            tmp_widget.setLayout(tmp_layout)
-            self.setCellWidget(i, 2, tmp_widget)
+            switch_widget = self.addWidgetItem(SwitchButton())
+            self.setCellWidget(i, 2, switch_widget)
 
         # self.setFixedSize(625, 440)
         self.resizeColumnsToContents()
+
+    def addWidgetItem(self, widget: QWidget):
+        tmp_widget = QWidget()
+        tmp_layout = QHBoxLayout()
+        tmp_layout.addSpacing(20)
+        tmp_layout.addWidget(widget)
+        tmp_layout.addSpacing(20)
+        tmp_widget.setLayout(tmp_layout)
+        return tmp_widget
 
 
 class RadioWidget(QWidget):

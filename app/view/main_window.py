@@ -10,7 +10,9 @@ from qfluentwidgets import FluentIcon as FIF
 
 from .gallery_interface import GalleryInterface
 from .home_interface import HomeInterface
+from .control_interface import ControlInterface
 from .character_interface import CharacterInterface
+from .massive_interface import MassiveInterface
 # from .basic_input_interface import BasicInputInterface
 # from .date_time_interface import DateTimeInterface
 # from .dialog_interface import DialogInterface
@@ -30,19 +32,25 @@ from ..common.icon import Icon
 from ..common.signal_bus import signalBus
 from ..common.translator import Translator
 from ..common import resource
-from ..view.login_widget import LoginMessageBox
+from ..view.user_info_dialog import UserInfoMessageBox
+from wcferry import Wcf
 
 
 class MainWindow(FluentWindow):
 
-    def __init__(self):
+    def __init__(self, wcf: Wcf):
         super().__init__()
         self.initWindow()
 
+        self.wcf = wcf
+
         # create sub interface
-        self.homeInterface = HomeInterface(self)
-        self.contactInterface = ContactInterface(self)
-        self.controlInterface = CharacterInterface(self)
+        # self.homeInterface = HomeInterface(self)
+        # self.controlInterface = ControlInterface(self)
+        # self.characterInterface = CharacterInterface(self)
+        # self.contactInterface = ContactInterface(self)
+        self.massiveInterface = MassiveInterface(wcf, self)
+
         # self.iconInterface = IconInterface(self)
         # self.basicInputInterface = BasicInputInterface(self)
         # self.dateTimeInterface = DateTimeInterface(self)
@@ -66,6 +74,9 @@ class MainWindow(FluentWindow):
         self.initNavigation()
         self.splashScreen.finish()
 
+        self.user_info = self.wcf.get_user_info()
+        self.showUserInfoDialog()
+
     def connectSignalToSlot(self):
         signalBus.micaEnableChanged.connect(self.setMicaEffectEnabled)
         signalBus.switchToSampleCard.connect(self.switchToSample)
@@ -74,9 +85,9 @@ class MainWindow(FluentWindow):
     def initNavigation(self):
         # add navigation items
         t = Translator()
-        self.addSubInterface(self.homeInterface, FIF.HOME, self.tr('Home'))
+        # self.addSubInterface(self.homeInterface, FIF.HOME, self.tr('Home'))
         # self.addSubInterface(self.iconInterface, Icon.EMOJI_TAB_SYMBOLS, t.icons)
-        self.navigationInterface.addSeparator()
+        # self.navigationInterface.addSeparator()
         #
         pos = NavigationItemPosition.SCROLL
         # self.addSubInterface(self.basicInputInterface, FIF.CHECKBOX,t.basicInput, pos)
@@ -90,14 +101,16 @@ class MainWindow(FluentWindow):
         # self.addSubInterface(self.statusInfoInterface, FIF.CHAT, t.statusInfo, pos)
         # self.addSubInterface(self.textInterface, Icon.TEXT, t.text, pos)
         # self.addSubInterface(self.viewInterface, Icon.GRID, t.view, pos)
-        self.addSubInterface(self.controlInterface, FIF.ROBOT, self.tr('控制面板'), pos)
-        self.addSubInterface(self.contactInterface, FIF.PEOPLE, self.tr('联系人'), pos)
+        # self.addSubInterface(self.controlInterface, FIF.CHECKBOX, self.tr('控制面板'), pos)
+        # self.addSubInterface(self.characterInterface, FIF.ROBOT, self.tr('人设'), pos)
+        # self.addSubInterface(self.contactInterface, FIF.PEOPLE, self.tr('联系人'), pos)
+        self.addSubInterface(self.massiveInterface, FIF.CHAT, self.tr('群发助手'), pos)
 
         # add custom widget to bottom
         self.navigationInterface.addWidget(
             routeKey='avatar',
             widget=NavigationAvatarWidget('User', 'app/resource/images/avatar.png'),
-            onClick=self.showLoginDialog,
+            onClick=self.showUserInfoDialog,
             position=NavigationItemPosition.BOTTOM,
         )
         # add custom widget to bottom
@@ -114,7 +127,7 @@ class MainWindow(FluentWindow):
             self.settingInterface, FIF.SETTING, self.tr('Settings'), NavigationItemPosition.BOTTOM)
 
     def initWindow(self):
-        self.resize(960, 780)
+        self.resize(960, 1010)
         self.setMinimumWidth(760)
         self.setWindowIcon(QIcon(':/gallery/images/logo.png'))
         self.setWindowTitle('微信个人助手')
@@ -152,7 +165,10 @@ class MainWindow(FluentWindow):
                 self.stackedWidget.setCurrentWidget(w, False)
                 w.scrollToCard(index)
 
-    def showLoginDialog(self):
-        w = LoginMessageBox(self.window())
-        if w.exec():
-            print(w.urlLineEdit.text())
+    def showUserInfoDialog(self):
+        w = UserInfoMessageBox(self.user_info, parent=self.window())
+        w.exec()
+
+    def closeEvent(self, e):
+        print('清理环境')
+        self.wcf.cleanup()
