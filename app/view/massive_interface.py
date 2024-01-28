@@ -130,6 +130,9 @@ class TableFrame(TableWidget):
             self.tr('微信昵称'), self.tr('微信备注'), self.tr('尊称'), self.tr('是否群发')
         ])
 
+        scroll_bar = self.verticalScrollBar()
+        scroll_bar.valueChanged.connect(self.scroll_bar_changed)
+
         # contactInfos = [
         #     {'wxid': '25984983094317076@openim', 'code': '', 'remark': '', 'name': '叶凤娟', 'country': '', 'province': '', 'city': '', 'gender': ''},
         #     {'wxid': '25984982554273028@openim', 'code': '', 'remark': '', 'name': 'P0超站-若汐', 'country': '', 'province': '', 'city': '', 'gender': ''},
@@ -181,6 +184,9 @@ class TableFrame(TableWidget):
         # # self.setFixedSize(625, 440)
         # self.resizeColumnsToContents()
 
+    def scroll_bar_changed(self):
+        print('1')
+
     def refresh_table(self, contactInfos):
         self.setRowCount(len(contactInfos))
         self.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
@@ -188,6 +194,8 @@ class TableFrame(TableWidget):
         self.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
 
         for i, contactInfo in enumerate(contactInfos):
+            if i > 50:
+                break
             self.setItem(i, 0, QTableWidgetItem(contactInfo["name"]))
             self.setItem(i, 1, QTableWidgetItem(contactInfo["remark"]))
 
