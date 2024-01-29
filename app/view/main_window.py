@@ -170,5 +170,6 @@ class MainWindow(FluentWindow):
         w.exec()
 
     def closeEvent(self, e):
+        self.massiveInterface.save_contact_config()  # 保存设置
         print('清理环境')
         self.wcf.cleanup()
