@@ -1,6 +1,7 @@
 .idea/
 venv/
 logs/
-.wcf.lock
+*.lock
 FluentDesigner_v1.3.3/
 **/__pycache__
+*.pem

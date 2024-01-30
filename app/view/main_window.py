@@ -1,4 +1,5 @@
 # coding: utf-8
+import json
 from typing import List
 from PySide6.QtCore import Qt, Signal, QEasingCurve, QUrl, QSize
 from PySide6.QtGui import QIcon, QDesktopServices
@@ -8,11 +9,14 @@ from qfluentwidgets import (NavigationAvatarWidget, NavigationItemPosition, Mess
                             SplashScreen)
 from qfluentwidgets import FluentIcon as FIF
 
+from . import shared
 from .gallery_interface import GalleryInterface
 from .home_interface import HomeInterface
 from .control_interface import ControlInterface
 from .character_interface import CharacterInterface
 from .massive_interface import MassiveInterface
+from .requestTh import RequestTh
+
 # from .basic_input_interface import BasicInputInterface
 # from .date_time_interface import DateTimeInterface
 # from .dialog_interface import DialogInterface
@@ -43,6 +47,7 @@ class MainWindow(FluentWindow):
         self.initWindow()
 
         self.wcf = wcf
+        self.wxid = self.wcf.get_self_wxid()
 
         # create sub interface
         # self.homeInterface = HomeInterface(self)
@@ -75,7 +80,9 @@ class MainWindow(FluentWindow):
         self.splashScreen.finish()
 
         self.user_info = self.wcf.get_user_info()
-        self.showUserInfoDialog()
+
+        w = UserInfoMessageBox(self.user_info, parent=self.window())
+        w.exec()
 
     def connectSignalToSlot(self):
         signalBus.micaEnableChanged.connect(self.setMicaEffectEnabled)
@@ -165,11 +172,36 @@ class MainWindow(FluentWindow):
                 self.stackedWidget.setCurrentWidget(w, False)
                 w.scrollToCard(index)
 
-    def showUserInfoDialog(self):
-        w = UserInfoMessageBox(self.user_info, parent=self.window())
-        w.exec()
+    def finish_get_user_info(self, is_success, user_info):
+        """ finish get user info """
+        if is_success:
+            json_data = json.loads(user_info)
+            shared.userInfo = json_data  # 更新用户信息
+            w = UserInfoMessageBox(self.user_info, parent=self.window())
+            w.exec()
+        else:
+            w = MessageBox('警告', '网络连接发生错误，即将退出', self.window())
+            w.exec()
+            self.wcf.cleanup()
+            self.close()
 
-    def closeEvent(self, e):
-        self.massiveInterface.save_contact_config()  # 保存设置
+    def showUserInfoDialog(self):
+        json_data = {'wxid': self.wxid}
+        self.userth = RequestTh(shared.get_info_url, json_data, 'post')
+        self.userth.finish.connect(self.finish_get_user_info)
+        self.userth.start()
+
+    def finish_save(self, is_success, text):
+        if not is_success:
+            w = MessageBox('警告', '网络连接发生错误，用户配置将失去同步', self.window())
+            w.exec()
         print('清理环境')
         self.wcf.cleanup()
+
+    def closeEvent(self, e):
+        # self.massiveInterface.save_contact_config()  # 保存设置
+        json_data = {'wxid': self.wxid, 'contactconfig': json.dumps(shared.contactConfigs)}
+        self.saveth = RequestTh(shared.save_info_url, json_data, 'post')
+        self.saveth.finish.connect(self.finish_save)
+        self.saveth.start()
+

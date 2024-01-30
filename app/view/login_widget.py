@@ -1,15 +1,22 @@
-from PySide6.QtCore import Qt, QUrl, QSize
+import json
+import time
+
+from PySide6.QtCore import Qt, QUrl, QSize, QThread, Signal, QTimer
 from PySide6.QtGui import QPixmap, QIcon
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget, QApplication
 from qfluentwidgets import (PushButton, Dialog, MessageBox, ColorDialog, TeachingTip, TeachingTipTailPosition,
                             InfoBarIcon, Flyout, FlyoutView, TeachingTipView, FlyoutAnimationType, SubtitleLabel,
-                            LineEdit, MessageBoxBase, PasswordLineEdit, BodyLabel, CheckBox, PrimaryPushButton)
+                            LineEdit, MessageBoxBase, PasswordLineEdit, BodyLabel, CheckBox, PrimaryPushButton,
+                            IndeterminateProgressBar)
 from qframelesswindow import AcrylicWindow
 from qfluentwidgets import setThemeColor
 from qfluentwidgets import FluentTranslator, SplitTitleBar
+
+from app.view import shared
 from app.view.main_window import MainWindow
 import robot
 from wcferry import Wcf
+from app.view.requestTh import RequestTh
 
 class LoginWindow(AcrylicWindow):
     """ Custom message box """
@@ -53,7 +60,7 @@ class LoginWindow(AcrylicWindow):
         self.logo_layout.addWidget(logo)
         self.rightLayout.addLayout(self.logo_layout)
 
-        self.login_btn = PrimaryPushButton(text=self.tr('微信扫码登录'))
+        self.login_btn = PrimaryPushButton(text=self.tr('登录'))
 
         self.rightLayout.addSpacing(50)
 
@@ -65,12 +72,38 @@ class LoginWindow(AcrylicWindow):
         w, h = desktop.width(), desktop.height()
         self.move(w // 2 - self.width() // 2, h // 2 - self.height() // 2)
 
+
     def start(self):
-        self.login()
+        self.login_btn.setVisible(False)
+        bar = IndeterminateProgressBar(self)
+        self.rightLayout.addSpacing(self.login_btn.height() - bar.height())
+        self.rightLayout.addWidget(bar)
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.login)
+        self.timer.setSingleShot(True)
+        self.timer.setInterval(1000)
+        self.timer.start()
+
+    def finish_get_user_info(self, is_success, user_info):
+        if is_success:
+            json_data = json.loads(user_info)
+            shared.userInfo = json_data  # 更新用户信息
+            self.close()
+            w = MainWindow(self.wcf)
+        else:
+            w = MessageBox('警告', '网络连接发生错误，即将退出', self.window())
+            w.exec()
+            self.wcf.cleanup()
+            self.close()
 
     def login(self):
-        wcf = Wcf(debug=True)
-        if wcf.is_login():
-            print(wcf.get_self_wxid())
-            self.close()
-            w = MainWindow(wcf)
+        self.wcf = Wcf(debug=True)
+        if self.wcf.is_login():
+            wxid = self.wcf.get_self_wxid()
+            url = shared.get_info_url
+            json_data = {'wxid': wxid}
+            self.userth = RequestTh(url, json_data, 'post')
+            self.userth.finish.connect(self.finish_get_user_info)
+            self.userth.start()
+
