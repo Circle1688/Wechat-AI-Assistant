@@ -320,9 +320,12 @@ class TableFrame(TableWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+
         self.parent = parent
         # self.setSortingEnabled(True)
         self.top_index = 0
+
+        self.set_all = False
 
         self.stateTooltip = None
 
@@ -353,6 +356,7 @@ class TableFrame(TableWidget):
             button = self.cellWidget(row, 3)
             if button is not None:
                 button.setEnabled(item.text() != '')
+        self.save_config()
 
     def buttonSwitched(self, r, state):
         """切换按钮时触发"""
@@ -360,10 +364,29 @@ class TableFrame(TableWidget):
         shared.contactConfigs[wxid]['massive'] = state
         self.parent.count_mass_user()
         self.parent.parent.search_without_params()
+        if not self.set_all:
+            self.save_config()
 
     def scroll_bar_changed(self, value):
         """滚动条滚动时触发"""
         pass
+
+    def save_config(self):
+        json_data = {'wxid': self.parent.parent.wxid, 'contactconfig': json.dumps(shared.contactConfigs)}
+        self.saveth = RequestTh(shared.save_info_url, json_data, 'post')
+        self.saveth.finish.connect(self.finish_save)
+        self.saveth.start()
+
+    def finish_save(self, is_success, text):
+        self.set_all = False
+        if is_success:
+            self.parent.show_info_bar('配置已更新')
+        else:
+            w = MessageBox('警告', '网络连接发生错误，即将退出', self.window())
+            w.exec()
+            self.parent.parent.wcf.cleanup()
+            self.parent.parent.close()
+
 
 
     def add_row(self, i, name, remark, respect, send_bool):
@@ -397,7 +420,10 @@ class TableFrame(TableWidget):
             self.parent.count_mass_user()
             self.parent.parent.refresh_contacts.setEnabled(True)
 
+            self.blockSignals(False)
+
     def refresh_table(self):
+        self.blockSignals(True)
         self.parent.parent.refresh_contacts.setEnabled(False)
         self.parent.parent.send_btn.setEnabled(False)
         self.parent.set_all_mass_btn.setEnabled(False)
@@ -484,10 +510,7 @@ class ContactTable(QWidget):
 
 
     def refresh(self):
-        self.blockSignals(True)
         self.tableView.refresh_table()
-        # self.count_mass_user()
-        self.blockSignals(False)
 
     def count_mass_user(self):
         count = 0
@@ -502,20 +525,24 @@ class ContactTable(QWidget):
 
     def set_all_mass(self):
         """全部群发"""
+        self.tableView.set_all = True
         for i, contactInfo in enumerate(shared.contactInfos):
             wxid = contactInfo['wxid']
             if shared.contactConfigs[wxid]['respect'] != '':
                 self.tableView.cellWidget(i, 3).setChecked(True)
+        self.tableView.save_config()
         self.parent.search(self.parent.searchLineEdit.text())
         self.count_mass_user()
         self.show_info_bar(f'{self.send_total}人已一键设置群发')
 
     def cancel_all_mass(self):
         """取消全部群发"""
+        self.tableView.set_all = True
         for i, contactInfo in enumerate(shared.contactInfos):
             wxid = contactInfo['wxid']
             if shared.contactConfigs[wxid]['respect'] != '':
                 self.tableView.cellWidget(i, 3).setChecked(False)
+        self.tableView.save_config()
         self.parent.search(self.parent.searchLineEdit.text())
         self.count_mass_user()
         self.show_info_bar(f'全部取消群发')

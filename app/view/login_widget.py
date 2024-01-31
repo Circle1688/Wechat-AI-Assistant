@@ -61,7 +61,7 @@ class LoginWindow(AcrylicWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         setThemeColor('#1AAD19')
-        self.resize(300, 400)
+        self.resize(320, 400)
 
         self.setTitleBar(SplitTitleBar(self))
 
@@ -163,14 +163,20 @@ class LoginWindow(AcrylicWindow):
             self.close()
 
     def login(self):
-        self.wcf = Wcf(debug=True)
+        try:
+            self.wcf = Wcf(debug=False)
+        except:
+            pass
         if self.wcf.is_login():
             user_info = self.wcf.get_user_info()
             wxid = user_info['wxid']
-            mobile = user_info['mobile']
             name = user_info['name']
+            if 'mobile' in user_info.keys():
+                mobile = user_info['mobile']
+                json_data = {'wxid': wxid, 'name': name, 'mobile': mobile}
+            else:
+                json_data = {'wxid': wxid, 'name': name}
             url = shared.get_info_url
-            json_data = {'wxid': wxid, 'name': name, 'mobile': mobile}
             self.userth = RequestTh(url, json_data, 'post')
             self.userth.finish.connect(self.finish_get_user_info)
             self.userth.start()

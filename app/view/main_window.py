@@ -5,7 +5,7 @@ import time
 from typing import List
 
 import qrcode
-from PySide6.QtCore import Qt, Signal, QEasingCurve, QUrl, QSize
+from PySide6.QtCore import Qt, Signal, QEasingCurve, QUrl, QSize, QTimer
 from PySide6.QtGui import QIcon, QDesktopServices, QPixmap, QColor
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QFrame, QWidget, QLabel, QSizePolicy
 
@@ -265,19 +265,18 @@ class MainWindow(FluentWindow):
         self.userth.finish.connect(self.finish_get_user_info)
         self.userth.start()
 
-    def finish_save(self, is_success, text):
-        if not is_success:
-            w = MessageBox('警告', '网络连接发生错误，用户配置将失去同步', self.window())
-            w.exec()
+    def clean_env(self):
         print('清理环境')
         self.wcf.cleanup()
 
     def closeEvent(self, e):
         # self.massiveInterface.save_contact_config()  # 保存设置
-        json_data = {'wxid': self.wxid, 'contactconfig': json.dumps(shared.contactConfigs)}
-        self.saveth = RequestTh(shared.save_info_url, json_data, 'post')
-        self.saveth.finish.connect(self.finish_save)
-        self.saveth.start()
+        self.closeTimer = QTimer()
+        self.closeTimer.setSingleShot(True)
+        self.closeTimer.setInterval(100)
+        self.closeTimer.timeout.connect(self.clean_env)
+        self.closeTimer.start()
+
 
     def query_close_pay_user_info(self, is_success, text):
         if is_success:
