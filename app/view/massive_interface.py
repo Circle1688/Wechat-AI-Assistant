@@ -102,6 +102,8 @@ class MassiveInterface(GalleryInterface):
 
         self.show_option_ID = 0  # 显示全部
 
+        self.show_respect = False
+
         self.stateTooltip = None  # 进度提示
 
         self.send_msg_id = []  # 已发送的msgid
@@ -284,6 +286,12 @@ class MassiveInterface(GalleryInterface):
         """设置行显示"""
         wxid = contactInfo['wxid']
         massive = shared.contactConfigs[wxid]['massive']
+        if self.show_respect:
+            respect = shared.contactConfigs[wxid]['respect']
+            if respect == '':
+                self.contactTable.tableView.setRowHidden(i, True)
+                return
+
         if self.show_option_ID == 0:
             self.contactTable.tableView.setRowHidden(i, False)
         elif self.show_option_ID == 1:
@@ -306,6 +314,10 @@ class MassiveInterface(GalleryInterface):
         """显示所有"""
         for i, contactInfo in enumerate(shared.contactInfos):
             self.set_row_hidden(i, contactInfo)
+
+    def set_show_respect(self, is_show):
+        self.show_respect = is_show
+        self.search_without_params()
 
 class SLineEdit(SearchLineEdit):
     """ Search line edit """
@@ -485,6 +497,10 @@ class ContactTable(QWidget):
         self.hBoxLayout = QHBoxLayout(self)
         self.panelLayout = QVBoxLayout(self.controlPanel)
 
+        self.show_respect = SwitchButton()
+        self.show_respect.setOnText('只显示有尊称的')
+        self.show_respect.setOffText('显示所有')
+
         # self.show_check = CheckBox(self.tr('只显示已有尊称的联系人'))
 
         self.show_option = RadioWidget(radios=['显示全部', '只显示已设置群发', '只显示未设置群发'])
@@ -580,6 +596,8 @@ class ContactTable(QWidget):
         # self.panelLayout.addSpacing(20)
         self.panelLayout.addWidget(self.send_all_data)
         self.panelLayout.addSpacing(20)
+        self.panelLayout.addWidget(self.show_respect)
+        self.panelLayout.addSpacing(20)
         self.panelLayout.addWidget(self.show_option)
 
         # self.panelLayout.addWidget(self.set_all_mass_btn)
@@ -593,6 +611,8 @@ class ContactTable(QWidget):
         self.panelLayout.addWidget(self.not_all_mass_btn)
         # self.panelLayout.addWidget(self.set_mass_btn)
         # self.panelLayout.addWidget(self.not_mass_btn)
+
+        self.show_respect.checkedChanged.connect(self.parent.set_show_respect)
 
     def show_info_bar(self, content):
         infoBar = InfoBar(
