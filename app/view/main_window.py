@@ -1,12 +1,17 @@
 # coding: utf-8
+import datetime
 import json
+import time
 from typing import List
+
+import qrcode
 from PySide6.QtCore import Qt, Signal, QEasingCurve, QUrl, QSize
-from PySide6.QtGui import QIcon, QDesktopServices
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QFrame, QWidget
+from PySide6.QtGui import QIcon, QDesktopServices, QPixmap, QColor
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QFrame, QWidget, QLabel, QSizePolicy
 
 from qfluentwidgets import (NavigationAvatarWidget, NavigationItemPosition, MessageBox, FluentWindow,
-                            SplashScreen)
+                            SplashScreen, InfoBar, InfoBarIcon, InfoBarPosition, MessageBoxBase, BodyLabel,
+                            SubtitleLabel, CaptionLabel)
 from qfluentwidgets import FluentIcon as FIF
 
 from . import shared
@@ -38,7 +43,78 @@ from ..common.translator import Translator
 from ..common import resource
 from ..view.user_info_dialog import UserInfoMessageBox
 from wcferry import Wcf
+from PIL import ImageQt
 
+class PayFailedMessageBox(MessageBoxBase):
+    """ Custom message box """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.titleLabel = SubtitleLabel(self.tr('提示'), self)
+
+        # add widget to view layout
+        self.viewLayout.addWidget(self.titleLabel)
+        self.viewLayout.addWidget(BodyLabel(self.tr('支付未成功'), self))
+
+        # change the text of button
+        self.yesButton.setText(self.tr('再试一次'))
+        self.cancelButton.setText(self.tr('Cancel'))
+
+        self.widget.setMinimumWidth(360)
+
+class PayInfoMessageBox(MessageBoxBase):
+    """ Custom message box """
+
+    def __init__(self, img, amount, category, valid, parent=None):
+        super().__init__(parent)
+
+
+        self.logo_layout = QHBoxLayout(self)
+
+        pixmap = QPixmap.fromImage(ImageQt.ImageQt(img))
+
+        qrcode = QLabel(pixmap=pixmap,
+                      scaledContents=True,
+                      maximumSize=QSize(200, 200),
+                      sizePolicy=QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding))
+        t_l = BodyLabel(self.tr('打开微信扫一扫'))
+        t_l.setAlignment(Qt.AlignCenter)
+        self.viewLayout.setSpacing(0)
+        self.viewLayout.addSpacing(30)
+        self.viewLayout.addWidget(t_l)
+        self.viewLayout.setAlignment(Qt.AlignCenter)
+        # add widget to view layout
+        # self.viewLayout.addSpacing(5)
+
+        self.logo_layout.addWidget(qrcode)
+
+        self.viewLayout.addLayout(self.logo_layout)
+
+        b_l = BodyLabel(self.tr('付款金额 %.2f 元升级成 %s 会员' % (amount / 100, category)))
+        b_l.setAlignment(Qt.AlignCenter)
+
+        v_l = CaptionLabel(self.tr(f'现在付款，有效期至{get_end_time_str(time.time(), valid)}， 共 {valid} 天'))
+        v_l.setAlignment(Qt.AlignCenter)
+        v_l.setTextColor(QColor(100, 100, 100))
+
+        # self.viewLayout.addSpacing(5)
+
+        self.viewLayout.addWidget(b_l)
+        self.viewLayout.addSpacing(5)
+        self.viewLayout.addWidget(v_l)
+
+        self.viewLayout.addSpacing(30)
+
+
+        # change the text of button
+        self.yesButton.setText(self.tr('我已付款'))
+
+        self.widget.setMinimumWidth(360)
+
+def get_end_time_str(current_timestamp, valid_days):
+    valid = datetime.datetime.utcfromtimestamp(current_timestamp) + datetime.timedelta(days=valid_days)
+    valid = valid.strftime('%Y年%m月%d日%H时%M分')
+    return valid
 
 class MainWindow(FluentWindow):
 
@@ -79,9 +155,7 @@ class MainWindow(FluentWindow):
         self.initNavigation()
         self.splashScreen.finish()
 
-        self.user_info = self.wcf.get_user_info()
-
-        w = UserInfoMessageBox(self.user_info, parent=self.window())
+        w = UserInfoMessageBox(parent=self.window())
         w.exec()
 
     def connectSignalToSlot(self):
@@ -136,7 +210,7 @@ class MainWindow(FluentWindow):
     def initWindow(self):
         self.resize(960, 1010)
         self.setMinimumWidth(760)
-        self.setWindowIcon(QIcon(':/gallery/images/logo.png'))
+        self.setWindowIcon(QIcon("app/resource/images/logo.png"))
         self.setWindowTitle('微信个人助手')
 
         self.setMicaEffectEnabled(cfg.get(cfg.micaEnabled))
@@ -177,7 +251,7 @@ class MainWindow(FluentWindow):
         if is_success:
             json_data = json.loads(user_info)
             shared.userInfo = json_data  # 更新用户信息
-            w = UserInfoMessageBox(self.user_info, parent=self.window())
+            w = UserInfoMessageBox(parent=self.window())
             w.exec()
         else:
             w = MessageBox('警告', '网络连接发生错误，即将退出', self.window())
@@ -204,4 +278,94 @@ class MainWindow(FluentWindow):
         self.saveth = RequestTh(shared.save_info_url, json_data, 'post')
         self.saveth.finish.connect(self.finish_save)
         self.saveth.start()
+
+    def query_close_pay_user_info(self, is_success, text):
+        if is_success:
+            if json.loads(text)['category'] != 'NORMAL':
+                w = MessageBox('提示', f"该订单已支付，恭喜您成为 {json.loads(text)['category']} 会员，有效期至{get_end_time_str(json.loads(text)['createtime'], json.loads(text)['valid'])}， 共 {json.loads(text)['valid']} 天",
+                               self.window())
+                w.exec()
+        else:
+            w = MessageBox('警告', '网络连接发生错误，即将退出', self.window())
+            w.exec()
+            self.wcf.cleanup()
+            self.close()
+
+    def close_pay(self, is_success, text):
+        if is_success:
+            message = json.loads(text)['message']
+            if message == '':
+                w = PayFailedMessageBox(self.window())
+                if w.exec():
+                    self.upgrade_user()
+                else:
+                    self.show_warn_info_bar('取消支付')
+
+            elif message == '该订单已支付':
+                json_data = {'wxid': self.wxid}
+                self.closequeryth = RequestTh(shared.get_info_url, json_data, 'post')
+                self.closequeryth.finish.connect(self.query_close_pay_user_info)
+                self.closequeryth.start()
+        else:
+            w = MessageBox('警告', '网络连接发生错误，即将退出', self.window())
+            w.exec()
+            self.wcf.cleanup()
+            self.close()
+
+    def get_pay_qrcode(self, is_success, text):
+        if is_success:
+            url = json.loads(json.loads(text)['message'])['code_url']
+            out_trade_no = json.loads(text)['out_trade_no']
+            amount = json.loads(text)['amount']
+            category = json.loads(text)['category']
+            valid = json.loads(text)['valid']
+            img = qrcode.make(url)
+            w = PayInfoMessageBox(img, amount, category, valid, self.window())
+            w.exec()
+            self.closeth = RequestTh(shared.close_url, {'wxid': self.wxid, 'out_trade_no': out_trade_no, 'category': category}, 'post')
+            self.closeth.finish.connect(self.close_pay)
+            self.closeth.start()
+        else:
+            w = MessageBox('警告', '网络连接发生错误，即将退出', self.window())
+            w.exec()
+            self.wcf.cleanup()
+            self.close()
+
+    def upgrade_user(self):
+        json_data = {'wxid': self.wxid}
+        self.userth = RequestTh(shared.get_info_url, json_data, 'post')
+        self.userth.finish.connect(self.finish_query_upgrade_user)
+        self.userth.start()
+
+    def finish_query_upgrade_user(self, is_success, text):
+        if is_success:
+            if json.loads(text)['category'] == 'NORMAL':
+                self.request_pay()
+            elif json.loads(text)['category'] == 1:
+                w = MessageBox('提示', f"恭喜您成为 {json.loads(text)['category']} 会员，有效期{json.loads(text)['valid']}天", self.window())
+                w.exec()
+        else:
+            w = MessageBox('警告', '网络连接发生错误，即将退出', self.window())
+            w.exec()
+            self.wcf.cleanup()
+            self.close()
+
+    def request_pay(self):
+        json_data = {'wxid': self.wxid, 'category': 'VIP0'}
+        self.payth = RequestTh(shared.pay_url, json_data, 'post')
+        self.payth.finish.connect(self.get_pay_qrcode)
+        self.payth.start()
+
+    def show_warn_info_bar(self, content):
+        infoBar = InfoBar(
+            icon=InfoBarIcon.WARNING,
+            title=self.tr('警告'),
+            content=content,
+            orient=Qt.Horizontal,
+            isClosable=True,
+            duration=2000,
+            position=InfoBarPosition.TOP_RIGHT,
+            parent=self.window()
+        )
+        infoBar.show()
 

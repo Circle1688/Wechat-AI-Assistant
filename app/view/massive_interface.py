@@ -20,40 +20,7 @@ from wcferry import Wcf
 import json
 from ..view import shared
 from .requestTh import RequestTh
-from PIL import ImageQt
 
-class PayInfoMessageBox(MessageBoxBase):
-    """ Custom message box """
-
-    def __init__(self, img, parent=None):
-        super().__init__(parent)
-
-        print(img)
-
-        self.logo_layout = QHBoxLayout(self)
-
-        pixmap = QPixmap.fromImage(ImageQt.ImageQt(img))
-
-        qrcode = QLabel(pixmap=pixmap,
-                      scaledContents=True,
-                      maximumSize=QSize(100, 100),
-                      sizePolicy=QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding))
-
-
-        # add widget to view layout
-        self.viewLayout.addSpacing(30)
-
-        self.logo_layout.addWidget(qrcode)
-
-        self.viewLayout.addLayout(self.logo_layout)
-
-        self.viewLayout.addSpacing(30)
-
-
-        # change the text of button
-        self.yesButton.setText(self.tr('我已付款'))
-
-        self.widget.setMinimumWidth(360)
 
 class SendMessageTh(QThread):
     """发送消息的后台线程"""
@@ -127,7 +94,9 @@ class MassiveInterface(GalleryInterface):
             parent=parent
         )
         self.wcf = wcf
+        self.wxid = self.wcf.get_self_wxid()
         self.setObjectName('massiveInterface')
+        self.parent = parent
 
         self.vBoxLayout.setSpacing(10)
 
@@ -221,71 +190,66 @@ class MassiveInterface(GalleryInterface):
         self.revo_btn.setEnabled(True)
         self.send_btn.setEnabled(True)
 
-    def get_pay_qrcode(self, is_success, text):
-        if is_success:
-            url = json.loads(json.loads(text)['message'])['code_url']
-            img = qrcode.make(url)
-            w = PayInfoMessageBox(img, self.window())
-            w.exec()
+
+
 
     def finish_get_user_info(self, is_success, text):
         if is_success:
             if json.loads(text)['category'] == 0:
-                self.payth = RequestTh(shared.pay_url, '', 'get')
-                self.payth.finish.connect(self.get_pay_qrcode)
-                self.payth.start()
+                self.parent.request_pay()
             elif json.loads(text)['category'] == 1:
                 self.send_msg_process()
+        else:
+            w = MessageBox('警告', '网络连接发生错误，即将退出', self.window())
+            w.exec()
+            self.wcf.cleanup()
+            self.close()
 
     def send_msg_process(self):
         message = self.content_lineedit.toPlainText()
-        if message == '':
-            infoBar = InfoBar(
-                icon=InfoBarIcon.WARNING,
-                title=self.tr('警告'),
-                content=self.tr("不能发送空消息"),
-                orient=Qt.Horizontal,
-                isClosable=True,
-                duration=2000,
-                position=InfoBarPosition.TOP_RIGHT,
-                parent=self.window()
-            )
-            infoBar.show()
+
+        w = MessageBox('提示', '确定群发消息吗', self.window())
+        if w.exec():
+            self.send_btn.setEnabled(False)
+            self.revo_btn.setEnabled(False)
+
+            self.send_msg_id = []  # 清空撤回消息
+            self.stateTooltip = StateToolTip(self.tr('正在群发消息'), self.tr('请耐心等待'), self.window())
+            self.stateTooltip.move(self.stateTooltip.getSuitablePos())
+            self.stateTooltip.show()
+
+            self.sendMsgTh = SendMessageTh(self.wcf, message)  # 后台线程
+            self.sendMsgTh.finish.connect(self.finish_send_msg)  # 绑定
+            self.sendMsgTh.start()  # 后台线程启动
         else:
-            w = MessageBox('提示', '确定群发消息吗', self.window())
-            if w.exec():
-                self.send_btn.setEnabled(False)
-                self.revo_btn.setEnabled(False)
-
-                self.send_msg_id = []  # 清空撤回消息
-                self.stateTooltip = StateToolTip(self.tr('正在群发消息'), self.tr('请耐心等待'), self.window())
-                self.stateTooltip.move(self.stateTooltip.getSuitablePos())
-                self.stateTooltip.show()
-
-                self.sendMsgTh = SendMessageTh(self.wcf, message)  # 后台线程
-                self.sendMsgTh.finish.connect(self.finish_send_msg)  # 绑定
-                self.sendMsgTh.start()  # 后台线程启动
-            else:
-                infoBar = InfoBar(
-                    icon=InfoBarIcon.WARNING,
-                    title=self.tr('警告'),
-                    content=self.tr("取消发送消息"),
-                    orient=Qt.Horizontal,
-                    isClosable=True,
-                    duration=2000,
-                    position=InfoBarPosition.TOP_RIGHT,
-                    parent=self.window()
-                )
-                infoBar.show()
+            self.show_warn_info_bar(self.tr("取消发送消息"))
 
     def send_msg(self):
-        json_data = {'wxid': self.wcf.get_user_info()['wxid']}
-        self.userth = RequestTh(shared.get_info_url, json_data, 'post')
-        self.userth.finish.connect(self.finish_get_user_info)
-        self.userth.start()
+        message = self.content_lineedit.toPlainText()
+        if message == '':
+            self.show_warn_info_bar(self.tr("不能发送空消息"))
+        else:
+            if self.contactTable.send_total == 0:
+                self.show_warn_info_bar(self.tr("未设置群发联系人"))
+            else:
+                json_data = {'wxid': self.wxid}
+                self.userth = RequestTh(shared.get_info_url, json_data, 'post')
+                self.userth.finish.connect(self.finish_get_user_info)
+                self.userth.start()
 
 
-
+    def show_warn_info_bar(self, content):
+        infoBar = InfoBar(
+            icon=InfoBarIcon.WARNING,
+            title=self.tr('警告'),
+            content=content,
+            orient=Qt.Horizontal,
+            isClosable=True,
+            duration=2000,
+            position=InfoBarPosition.TOP_RIGHT,
+            parent=self.window()
+        )
+        infoBar.show()
 
 
 
@@ -329,10 +293,11 @@ class MassiveInterface(GalleryInterface):
 
     def search(self, keyWord: str):
         """ 搜索联系人 """
+        keyWord = keyWord.lower()
         for i, contactInfo in enumerate(shared.contactInfos):
             wxid = contactInfo['wxid']
             respect = shared.contactConfigs[wxid]['respect']
-            if keyWord not in contactInfo['name'] and keyWord not in contactInfo['remark'] and keyWord not in respect:
+            if keyWord not in contactInfo['name'].lower() and keyWord not in contactInfo['remark'].lower() and keyWord not in respect.lower():
                 self.contactTable.tableView.setRowHidden(i, True)
             else:
                 self.set_row_hidden(i, contactInfo)
@@ -485,7 +450,7 @@ class ContactTable(QWidget):
         super().__init__(parent=parent)
         self.parent = parent
 
-
+        self.send_total = 0
 
         self.tableView = TableFrame(self)
 
@@ -496,7 +461,7 @@ class ContactTable(QWidget):
 
         # self.show_check = CheckBox(self.tr('只显示已有尊称的联系人'))
 
-        self.show_option = RadioWidget(radios=['显示全部', '只显示群发', '只显示未群发'])
+        self.show_option = RadioWidget(radios=['显示全部', '只显示已设置群发', '只显示未设置群发'])
 
         self.send_all_data = BodyLabel()
 
@@ -531,7 +496,8 @@ class ContactTable(QWidget):
             massive = shared.contactConfigs[wxid]['massive']
             if massive:
                 count += 1
-        self.send_all_data.setText(self.tr(f"{count}人已设置群发"))
+        self.send_total = count
+        self.send_all_data.setText(self.tr(f"{self.send_total}人已设置群发"))
 
 
     def set_all_mass(self):
@@ -542,6 +508,7 @@ class ContactTable(QWidget):
                 self.tableView.cellWidget(i, 3).setChecked(True)
         self.parent.search(self.parent.searchLineEdit.text())
         self.count_mass_user()
+        self.show_info_bar(f'{self.send_total}人已一键设置群发')
 
     def cancel_all_mass(self):
         """取消全部群发"""
@@ -551,6 +518,7 @@ class ContactTable(QWidget):
                 self.tableView.cellWidget(i, 3).setChecked(False)
         self.parent.search(self.parent.searchLineEdit.text())
         self.count_mass_user()
+        self.show_info_bar(f'全部取消群发')
 
     def __initWidget(self):
         self.initLayout()
@@ -598,3 +566,16 @@ class ContactTable(QWidget):
         self.panelLayout.addWidget(self.not_all_mass_btn)
         # self.panelLayout.addWidget(self.set_mass_btn)
         # self.panelLayout.addWidget(self.not_mass_btn)
+
+    def show_info_bar(self, content):
+        infoBar = InfoBar(
+            icon=InfoBarIcon.SUCCESS,
+            title=self.tr('成功'),
+            content=content,
+            orient=Qt.Horizontal,
+            isClosable=True,
+            duration=2000,
+            position=InfoBarPosition.TOP_RIGHT,
+            parent=self.window()
+        )
+        infoBar.show()

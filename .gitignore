@@ -6,3 +6,5 @@ FluentDesigner_v1.3.3/
 **/__pycache__
 *.pem
 *.log
+*.db
+*.key
